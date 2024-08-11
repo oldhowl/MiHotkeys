@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net8.0-windows</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <UseWindowsForms>true</UseWindowsForms>
+        <SelfContained>true</SelfContained>
+    </PropertyGroup>
+    <PropertyGroup>
+        <ApplicationIcon>Resources/mi_logo.ico</ApplicationIcon>
+    </PropertyGroup>
+<!--    <ItemGroup>-->
+<!--        <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.122" />-->
+<!--    </ItemGroup>-->
+
+
+    <ItemGroup>
+        <Content Include="Resources\mi_logo.ico">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+    
+
+</Project>
