@@ -2,10 +2,9 @@ using System.Runtime.InteropServices;
 
 namespace MiHotkeys.Services.PowerManager
 {
-
     public class PowerModeSwitcher
     {
-        private          PowerMode                   _currentMode;
+        public           PowerMode                   CurrentMode;
         private readonly Dictionary<PowerMode, Guid> _powerModeGuids;
 
         public PowerModeSwitcher(Guid silenceMode, Guid balancedMode, Guid maxPowerMode)
@@ -22,12 +21,12 @@ namespace MiHotkeys.Services.PowerManager
                 throw new ArgumentException("The dictionary must contain at least three power modes.");
             }
 
-            _currentMode = GetCurrentPowerMode();
+            CurrentMode = GetCurrentPowerMode();
         }
 
         public PowerMode SetNextPowerMode()
         {
-            _currentMode = _currentMode switch
+            CurrentMode = CurrentMode switch
             {
                 PowerMode.Silence  => PowerMode.Balance,
                 PowerMode.Balance  => PowerMode.MaxPower,
@@ -35,7 +34,7 @@ namespace MiHotkeys.Services.PowerManager
                 _                  => throw new ArgumentOutOfRangeException()
             };
 
-            if (_powerModeGuids.TryGetValue(_currentMode, out var modeGuid))
+            if (_powerModeGuids.TryGetValue(CurrentMode, out var modeGuid))
             {
                 var result = PowerSetActiveOverlayScheme(modeGuid);
                 if (result != 0)
@@ -43,7 +42,7 @@ namespace MiHotkeys.Services.PowerManager
                     throw new InvalidOperationException($"Failed to set power mode. Error code: {result}");
                 }
 
-                return _currentMode;
+                return CurrentMode;
             }
             else
             {

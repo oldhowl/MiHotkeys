@@ -4,13 +4,16 @@ namespace MiHotkeys.Services.DisplayManager
 {
     public class DisplayModeSwitcher
     {
-        private readonly RefreshRateMode[] _refreshRates = { RefreshRateMode.Hz60, RefreshRateMode.Hz120, RefreshRateMode.Hz165 };
-        private int _currentIndex;
+        private readonly RefreshRateMode[] _refreshRates =
+            { RefreshRateMode.Hz60, RefreshRateMode.Hz120, RefreshRateMode.Hz165 };
+
+        private int                   _currentIndex;
         private NativeMethods.Devmode _currentDevMode;
+        public  RefreshRateMode       CurrentRefreshRate { get; private set; }
 
         public DisplayModeSwitcher()
         {
-            _currentDevMode = new NativeMethods.Devmode();
+            _currentDevMode        = new NativeMethods.Devmode();
             _currentDevMode.dmSize = (ushort)Marshal.SizeOf(_currentDevMode);
 
             if (!NativeMethods.EnumDisplaySettings(null!, NativeMethods.EnumCurrentSettings, ref _currentDevMode))
@@ -18,8 +21,8 @@ namespace MiHotkeys.Services.DisplayManager
                 throw new Exception("Failed to get current display settings.");
             }
 
-            var currentMode = GetCurrentRefreshRateMode();
-            _currentIndex = Array.IndexOf(_refreshRates, currentMode);
+            CurrentRefreshRate = GetCurrentRefreshRateMode();
+            _currentIndex      = Array.IndexOf(_refreshRates, CurrentRefreshRate);
         }
 
         public RefreshRateMode SetNextRefreshRate()
@@ -27,7 +30,7 @@ namespace MiHotkeys.Services.DisplayManager
             _currentIndex = (_currentIndex + 1) % _refreshRates.Length;
 
             ChangeDisplayFrequency((uint)_refreshRates[_currentIndex]);
-
+            CurrentRefreshRate = GetCurrentRefreshRateMode();
             return _refreshRates[_currentIndex];
         }
 
@@ -39,13 +42,14 @@ namespace MiHotkeys.Services.DisplayManager
         private void ChangeDisplayFrequency(uint frequency)
         {
             _currentDevMode.dmDisplayFrequency = frequency;
-            _currentDevMode.dmFields = NativeMethods.DmDisplayfrequency;
+            _currentDevMode.dmFields           = NativeMethods.DmDisplayfrequency;
 
             var result = NativeMethods.ChangeDisplaySettings(ref _currentDevMode, NativeMethods.CdsUpdateregistry);
 
             if (result != NativeMethods.DispChangeSuccessful)
             {
-                throw new Exception($"Switching to {frequency} Hz failed with error code {result}. Last error: {Marshal.GetLastWin32Error()}");
+                throw new Exception(
+                    $"Switching to {frequency} Hz failed with error code {result}. Last error: {Marshal.GetLastWin32Error()}");
             }
         }
     }

@@ -17,7 +17,7 @@
 
 
     <ItemGroup>
-        <Content Include="Resources\mi_logo.ico">
+        <Content Include="Resources\**\*">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
     </ItemGroup>

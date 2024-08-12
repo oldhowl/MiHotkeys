@@ -27,12 +27,22 @@ namespace MiHotkeys.Forms
                 ShowNotification
             );
             _trayIconBehavior = new TrayMenu();
+            
+            _trayIconBehavior.UpdateStatusToolTip(
+                _hotKeysService.CurrentStatuses.PowerMode,
+                _hotKeysService.CurrentStatuses.RefreshRateMode.ToString()
+            );
         }
 
         private void ShowNotification(string message)
         {
             Invoke((Action)(() =>
                             {
+                                _trayIconBehavior.UpdateStatusToolTip(
+                                    _hotKeysService.CurrentStatuses.PowerMode,
+                                    _hotKeysService.CurrentStatuses.RefreshRateMode.ToString()
+                                );
+                                
                                 var notificationForm = new Notification(message)
                                 {
                                     StartPosition = FormStartPosition.Manual,
