@@ -8,6 +8,7 @@ namespace MiHotkeys.Forms
         private const string StartupMenuItemText = "Run on start";
         private const string ExitMenuItemText    = "Exit";
         private const string ShortcutName        = "MiHotkeys.lnk";
+        private const string FreepikLicense      = "Icons by Freepik.com";
 
         private readonly NotifyIcon _notifyTrayIcon;
 
@@ -20,13 +21,20 @@ namespace MiHotkeys.Forms
             };
 
             var contextMenu = new ContextMenuStrip();
+
             var autoStartMenuItem = new ToolStripMenuItem(StartupMenuItemText)
                 { Checked = AutoStartManager.IsInStartup(ShortcutName) };
+
             var exitNotifyIconMenuItem = new ToolStripMenuItem(ExitMenuItemText);
 
             autoStartMenuItem.Click      += (s, _) => AutoStartMenuItem_Click(s, ShortcutName);
             exitNotifyIconMenuItem.Click += ExitMenuItem_Click;
 
+            contextMenu.Items.Add(new ToolStripMenuItem(FreepikLicense)
+            {
+                Enabled = false,
+            });
+            contextMenu.Items.Add(new ToolStripSeparator());
             contextMenu.Items.Add(autoStartMenuItem);
             contextMenu.Items.Add(exitNotifyIconMenuItem);
             _notifyTrayIcon.ContextMenuStrip = contextMenu;
