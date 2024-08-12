@@ -1,33 +1,26 @@
+using System.ComponentModel;
 using MiHotkeys.Services;
 using MiHotkeys.Services.DisplayManager;
 using MiHotkeys.Services.PowerManager;
 
 namespace MiHotkeys.Forms
 {
-    public  class MainForm : Form
+    public class MainForm : Form
     {
         private readonly HotKeysService _hotKeysService;
-        private readonly TrayMenu       _trayIconBehavior;
+        private readonly TrayMenu        _trayIconBehavior;
 
-        public MainForm()
+        public MainForm(HotKeysService hotKeysService)
         {
-            var powerModeSwitcher = new PowerModeSwitcher(
-                new Guid("961cc777-2547-4f9d-8174-7d86181b8a7a"),
-                new Guid("00000000-0000-0000-0000-000000000000"),
-                new Guid("ded574b5-45a0-4f42-8737-46345c09c238")
-            );
-
-            WindowState   = FormWindowState.Minimized;
-            ShowInTaskbar = false;
-
-            _hotKeysService = new HotKeysService(
-                powerModeSwitcher,
-                new KeyboardHook(),
-                new DisplayModeSwitcher(),
-                ShowNotification
-            );
+            _hotKeysService   = hotKeysService;
             _trayIconBehavior = new TrayMenu();
+
+            _hotKeysService.NotificationCallback = ShowNotification;
             
+            WindowState       = FormWindowState.Minimized;
+            ShowInTaskbar     = false;
+            
+
             _trayIconBehavior.UpdateStatusToolTip(
                 _hotKeysService.CurrentStatuses.PowerMode,
                 _hotKeysService.CurrentStatuses.RefreshRateMode.ToString()
@@ -36,13 +29,14 @@ namespace MiHotkeys.Forms
 
         private void ShowNotification(string message)
         {
+          
             Invoke((Action)(() =>
                             {
                                 _trayIconBehavior.UpdateStatusToolTip(
                                     _hotKeysService.CurrentStatuses.PowerMode,
                                     _hotKeysService.CurrentStatuses.RefreshRateMode.ToString()
                                 );
-                                
+
                                 var notificationForm = new Notification(message)
                                 {
                                     StartPosition = FormStartPosition.Manual,
@@ -55,8 +49,7 @@ namespace MiHotkeys.Forms
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            _hotKeysService.Dispose();
-            _trayIconBehavior.Dispose(); 
+            _trayIconBehavior.Dispose();
             base.OnFormClosing(e);
         }
     }

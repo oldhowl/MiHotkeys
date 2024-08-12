@@ -5,11 +5,10 @@ namespace MiHotkeys.Forms
 {
     public class TrayMenu : IDisposable
     {
-        private const string StartupMenuItemText = "Run on start";
-        private const string ExitMenuItemText    = "Exit";
-        private const string ShortcutName        = "MiHotkeys.lnk";
-        private const string FreepikLicense      = "Icons by Freepik.com";
-
+        private const    string     StartupMenuItemText = "Run on start";
+        private const    string     ExitMenuItemText    = "Exit";
+        private const    string     ShortcutName        = "MiHotkeys.lnk";
+        private const    string     FreepikLicense      = "Icons by Freepik.com";
         private readonly NotifyIcon _notifyTrayIcon;
 
         public TrayMenu()
@@ -34,6 +33,8 @@ namespace MiHotkeys.Forms
             {
                 Enabled = false,
             });
+
+
             contextMenu.Items.Add(new ToolStripSeparator());
             contextMenu.Items.Add(autoStartMenuItem);
             contextMenu.Items.Add(exitNotifyIconMenuItem);
@@ -44,6 +45,7 @@ namespace MiHotkeys.Forms
         public void UpdateStatusToolTip(PowerMode powerMode, string refreshRate)
         {
             _notifyTrayIcon.Icon = GetIconByState(powerMode);
+
             _notifyTrayIcon.Text = $"Power Mode: {powerMode.ToString()}\nRefresh Rate: {refreshRate}";
         }
 
@@ -51,27 +53,27 @@ namespace MiHotkeys.Forms
         {
             return new Icon(state switch
             {
-                PowerMode.Silence  => "Resources/silence.ico",
-                PowerMode.Balance  => "Resources/balance.ico",
-                PowerMode.MaxPower => "Resources/max.ico",
+                PowerMode.Silence  => "Resources/low.ico",
+                PowerMode.Balance  => "Resources/mid.ico",
+                PowerMode.MaxPower => "Resources/high.ico",
                 _                  => throw new ArgumentOutOfRangeException(nameof(state), state, null)
             });
         }
 
         private void AutoStartMenuItem_Click(object? sender, string shortcutName)
         {
-            if (sender is ToolStripMenuItem menuItem)
+            if (sender is not ToolStripMenuItem menuItem) return;
+
+            switch (menuItem.Checked)
             {
-                if (menuItem.Checked)
-                {
+                case true:
                     AutoStartManager.RemoveFromStartup(shortcutName);
                     menuItem.Checked = false;
-                }
-                else
-                {
+                    break;
+                default:
                     AutoStartManager.AddToStartup(shortcutName);
                     menuItem.Checked = true;
-                }
+                    break;
             }
         }
 

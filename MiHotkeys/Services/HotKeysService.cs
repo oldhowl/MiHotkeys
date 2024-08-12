@@ -10,24 +10,23 @@ public class HotKeysService : IDisposable
     private readonly IKeyboardHook       _keyboardHook;
     private readonly DisplayModeSwitcher _displayModeSwitcher;
     private readonly long[]              _screenModeSwitchCombination;
-    private readonly Action<string>      _notificationCallback;
+    public           Action<string>      NotificationCallback;
 
     public CurrentStatuses CurrentStatuses { get; private set; }
 
-    public HotKeysService(PowerModeSwitcher   powerModeSwitcher,   IKeyboardHook  keyboardHook,
-                          DisplayModeSwitcher displayModeSwitcher, Action<string> notificationCallback)
+    public HotKeysService(PowerModeSwitcher   powerModeSwitcher, IKeyboardHook keyboardHook,
+                          DisplayModeSwitcher displayModeSwitcher)
     {
         CurrentStatuses = new CurrentStatuses();
         _screenModeSwitchCombination =
             new[] { KeysConstants.MiButtonCode, KeysConstants.ScreenModeSwitchCode }.Order().ToArray();
-        _powerModeSwitcher    = powerModeSwitcher;
-        _keyboardHook         = keyboardHook;
-        _displayModeSwitcher  = displayModeSwitcher;
-        _notificationCallback = notificationCallback;
+        _powerModeSwitcher   = powerModeSwitcher;
+        _keyboardHook        = keyboardHook;
+        _displayModeSwitcher = displayModeSwitcher;
 
         _keyboardHook.KeyCombinationPressed += OnKeyCombinationPressed;
 
-        CurrentStatuses.PowerMode   = _powerModeSwitcher.CurrentMode;
+        CurrentStatuses.PowerMode       = _powerModeSwitcher.CurrentMode;
         CurrentStatuses.RefreshRateMode = _displayModeSwitcher.CurrentRefreshRate;
     }
 
@@ -38,14 +37,14 @@ public class HotKeysService : IDisposable
             var currentPowerMode = _powerModeSwitcher.SetNextPowerMode();
             CurrentStatuses.PowerMode = _powerModeSwitcher.CurrentMode;
 
-            _notificationCallback.Invoke(currentPowerMode switch
+            NotificationCallback.Invoke(currentPowerMode switch
             {
                 PowerMode.Silence  => "Silence",
                 PowerMode.Balance  => "Balance",
                 PowerMode.MaxPower => "Max power",
                 _                  => throw new ArgumentOutOfRangeException()
             });
-            
+
             return;
         }
 
@@ -55,14 +54,13 @@ public class HotKeysService : IDisposable
         {
             var currentRefreshRate = _displayModeSwitcher.SetNextRefreshRate();
             CurrentStatuses.RefreshRateMode = _displayModeSwitcher.CurrentRefreshRate;
-            _notificationCallback.Invoke(currentRefreshRate switch
+            NotificationCallback.Invoke(currentRefreshRate switch
             {
                 RefreshRateMode.Hz60  => "60 Hz",
                 RefreshRateMode.Hz120 => "120 Hz",
                 RefreshRateMode.Hz165 => "165 Hz",
                 _                     => throw new ArgumentOutOfRangeException()
             });
-           
         }
     }
 

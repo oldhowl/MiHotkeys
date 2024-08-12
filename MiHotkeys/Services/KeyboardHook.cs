@@ -1,13 +1,15 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace MiHotkeys.Services;
 
-public class KeyboardHook :  IKeyboardHook
+public class KeyboardHook : IKeyboardHook
 {
     private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
-    private readonly IntPtr _hookId;
+    private LowLevelKeyboardProc _proc;
+    private IntPtr               _hookId;
 
     private readonly HashSet<long> _pressedKeys         = new();
     private readonly List<long>    _releasedCombination = new();
@@ -16,7 +18,28 @@ public class KeyboardHook :  IKeyboardHook
 
     public KeyboardHook()
     {
-        _hookId = SetHook(HookCallback);
+        _proc   = HookCallback;
+        _hookId = SetHook(_proc);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            if (_hookId != IntPtr.Zero)
+            {
+                if (!UnhookWindowsHookEx(_hookId))
+                {
+                    int errorCode = Marshal.GetLastWin32Error();
+                    throw new Win32Exception(errorCode,
+                        $"Failed to remove keyboard hooks for '{Process.GetCurrentProcess().ProcessName}'. Error {errorCode}: {new Win32Exception(errorCode).Message}.");
+                }
+
+                _hookId = IntPtr.Zero;
+            }
+
+            _proc -= HookCallback;
+        }
     }
 
     private IntPtr SetHook(LowLevelKeyboardProc proc)
@@ -29,42 +52,45 @@ public class KeyboardHook :  IKeyboardHook
 
     private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
-        if (nCode >= 0)
-        {
-            var vkCode = Marshal.ReadInt64(lParam);
+        if (nCode < 0)
+            return CallNextHookEx(_hookId, nCode, wParam, lParam);
 
-            if (wParam == WmKeydown)
-            {
+        var vkCode = Marshal.ReadInt64(lParam);
+
+        switch (wParam)
+        {
+            case WmKeydown:
                 if (_pressedKeys.Add(vkCode))
-                {
                     _releasedCombination.Add(vkCode);
-                }
-            }
-            else if (wParam == WmKeyup)
-            {
+                break;
+            case WmKeyup:
                 if (_pressedKeys.Remove(vkCode))
                 {
-                    if (_pressedKeys.Count == 0)
+                    if (_pressedKeys.Count == 0 && _releasedCombination.Count > 0)
                     {
-                        if (_releasedCombination.Count > 0)
-                        {
-                            KeyCombinationPressed?.Invoke(_releasedCombination.ToArray());
-                            _releasedCombination.Clear();
-                        }
+                        var combination = _releasedCombination.ToArray();
+                        _releasedCombination.Clear();
+                        Task.Run(() => KeyCombinationPressed?.Invoke(combination));
                     }
                 }
-            }
+
+                break;
         }
 
         return CallNextHookEx(_hookId, nCode, wParam, lParam);
     }
 
-
     public void Dispose()
     {
-        UnhookWindowsHookEx(_hookId);
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 
+    ~KeyboardHook()
+    {
+        Dispose(false);
+    }
+    
     private const int WhKeyboardLl = 13;
     private const int WmKeydown    = 0x0100;
     private const int WmKeyup      = 0x0101;
