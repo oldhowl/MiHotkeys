@@ -77,13 +77,13 @@ namespace MiHotkeys.Forms
 
         private void ExitMenuItem_Click(object? sender, EventArgs e)
         {
-            _notifyTrayIcon?.Dispose();
+            _notifyTrayIcon.Dispose();
             Application.Exit();
         }
 
         public void Dispose()
         {
-            _notifyTrayIcon?.Dispose();
+            _notifyTrayIcon.Dispose();
         }
     }
 }

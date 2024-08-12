@@ -1,4 +1,3 @@
-using System.ComponentModel.Design;
 using MiHotkeys.Services.DisplayManager;
 using MiHotkeys.Services.PowerManager;
 
