@@ -4,76 +4,45 @@ namespace MiHotkeys.Services.PowerManager
 {
     public class PowerModeSwitcher
     {
-        public           PowerMode                   CurrentMode;
-        private readonly Dictionary<PowerMode, Guid> _powerModeGuids;
+        private readonly IPowerModeProvider _powerModeProvider;
+        public           PowerMode          CurrentMode;
 
-        public PowerModeSwitcher(Guid silenceMode, Guid balancedMode, Guid maxPowerMode)
+
+        public PowerModeSwitcher(IPowerModeProvider powerModeProvider)
         {
-            _powerModeGuids = new Dictionary<PowerMode, Guid>()
-            {
-                [PowerMode.Silence]  = silenceMode,
-                [PowerMode.Balance]  = balancedMode,
-                [PowerMode.MaxPower] = maxPowerMode
-            };
-
-            if (_powerModeGuids.Count < 3)
-            {
-                throw new ArgumentException("The dictionary must contain at least three power modes.");
-            }
-
-            CurrentMode = GetCurrentPowerMode();
+            _powerModeProvider = powerModeProvider;
+            RequestPowerMode();
         }
 
-        public PowerMode SetNextPowerMode()
+        public void SetNextPowerMode()
         {
-            CurrentMode = CurrentMode switch
-            {
-                PowerMode.Silence  => PowerMode.Balance,
-                PowerMode.Balance  => PowerMode.MaxPower,
-                PowerMode.MaxPower => PowerMode.Silence,
-                _                  => throw new ArgumentOutOfRangeException()
-            };
+            if (CurrentMode == PowerMode.Pending)
+                return;
 
-            if (_powerModeGuids.TryGetValue(CurrentMode, out var modeGuid))
-            {
-                var result = PowerSetActiveOverlayScheme(modeGuid);
-                if (result != 0)
-                {
-                    throw new InvalidOperationException($"Failed to set power mode. Error code: {result}");
-                }
+            var powerMode = (int)CurrentMode;
 
-                return CurrentMode;
-            }
+            if (CurrentMode == PowerMode.Turbo)
+                powerMode = (int)PowerMode.Silence;
             else
             {
-                throw new InvalidOperationException("Unknown power mode GUID.");
+                powerMode += 1;
             }
+
+            _powerModeProvider.SetPowerMode(powerMode);
+            _powerModeProvider.RequestCurrentPowerMode();
         }
 
-        private PowerMode GetCurrentPowerMode()
+        private void RequestPowerMode()
         {
-            var result = PowerGetActualOverlayScheme(out var actualSchemeGuid);
-
-            if (result != 0)
-            {
-                throw new InvalidOperationException($"Failed to get current power mode. Error code: {result}");
-            }
-
-            foreach (var mode in _powerModeGuids)
-            {
-                if (mode.Value == actualSchemeGuid)
-                {
-                    return mode.Key;
-                }
-            }
-
-            throw new InvalidOperationException("Unknown current power mode.");
+            CurrentMode = PowerMode.Pending;
+            _powerModeProvider.RequestCurrentPowerMode();
         }
 
-        [DllImport("powrprof.dll", EntryPoint = "PowerSetActiveOverlayScheme")]
-        private static extern uint PowerSetActiveOverlayScheme(Guid overlaySchemeGuid);
+        public void SetPowerMode(int powerMode)
+        {
+            CurrentMode = (PowerMode)powerMode;
+        }
 
-        [DllImport("powrprof.dll", EntryPoint = "PowerGetActualOverlayScheme")]
-        private static extern int PowerGetActualOverlayScheme(out Guid actualOverlayGuid);
+        
     }
 }

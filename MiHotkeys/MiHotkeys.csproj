@@ -3,6 +3,7 @@
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
         <TargetFramework>net8.0-windows</TargetFramework>
+<!--        <ApplicationManifest>app.manifest</ApplicationManifest>-->
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <UseWindowsForms>true</UseWindowsForms>
@@ -15,5 +16,30 @@
         <Content Include="Resources\**\*">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
+    </ItemGroup>
+  
+    <ItemGroup>
+        <PackageReference Include="NAudio" Version="2.2.1"/>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3"/>
+        <PackageReference Include="System.Management" Version="8.0.0"/>
+        <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.0"/>
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="lib\**\*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            <Link>%(RecursiveDir)%(Filename)%(Extension)</Link>
+        </None>
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="miService\**\*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        </None>
+    </ItemGroup>
+    <ItemGroup>
+        <Reference Include="SvrCModuleClrWrapper">
+            <HintPath>lib\SvrCModuleClrWrapper.dll</HintPath>
+        </Reference>
     </ItemGroup>
 </Project>

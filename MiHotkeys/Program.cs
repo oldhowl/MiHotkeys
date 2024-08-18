@@ -1,11 +1,18 @@
+using MiHotkeys.Common;
 using MiHotkeys.Forms;
 using MiHotkeys.Services;
+using MiHotkeys.Services.AudioManager;
+using MiHotkeys.Services.BatteryInfo;
 using MiHotkeys.Services.DisplayManager;
+using MiHotkeys.Services.HotKeys;
+using MiHotkeys.Services.MiDevice;
+using MiHotkeys.Services.NativeServices;
 using MiHotkeys.Services.PowerManager;
+using MiHotkeys.Services.PowerMonitor;
 
 namespace MiHotkeys;
 
-public class Program 
+public class Program
 {
     private static HotKeysService? _hotKeysService;
 
@@ -13,18 +20,28 @@ public class Program
     static void Main()
     {
         ApplicationConfiguration.Initialize();
+        Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
+
+        var miDeviceService = new MiDeviceEventBus();
+
         _hotKeysService = new HotKeysService(
-            new PowerModeSwitcher(
-                new Guid("961cc777-2547-4f9d-8174-7d86181b8a7a"),
-                new Guid("00000000-0000-0000-0000-000000000000"),
-                new Guid("ded574b5-45a0-4f42-8737-46345c09c238")
+            new PowerMonitorService(),
+            miDeviceService,
+            new BatteryInfoService(),
+            new HotKeysOptions(
+                [KeysConstants.MiButtonCode, KeysConstants.ScreenModeSwitchCode],
+                [KeysConstants.MiButtonCode],
+                [KeysConstants.MiButtonCode, KeysConstants.MicSwitchButtonCode],
+                [KeysConstants.MiButtonCode, KeysConstants.SnippingToolButtonCode],
+                [KeysConstants.MiButtonCode, KeysConstants.SystemSettingsButtonCode]
             ),
+            new MultimediaHardwareService(),
+            new PowerModeSwitcher(new PowerModeProvider(miDeviceService)),
             new KeyboardHook(),
             new DisplayModeSwitcher()
         );
 
+       
         Application.Run(new MainForm(_hotKeysService));
     }
-
- 
 }
