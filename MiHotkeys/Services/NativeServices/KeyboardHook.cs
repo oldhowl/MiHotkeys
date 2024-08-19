@@ -18,6 +18,8 @@ public class KeyboardHook : IKeyboardHook
     private readonly HashSet<long> _pressedKeys         = new();
     private readonly List<long>    _releasedCombination = new();
 
+    private bool _miButtonPressed = false; // Флаг для отслеживания состояния Mi-кнопки
+
     public event Action<long[]>? KeyCombinationPressed;
 
     public KeyboardHook()
@@ -29,11 +31,6 @@ public class KeyboardHook : IKeyboardHook
         _hookCheckTimer = new Timer(CheckHook, null, TimeSpan.Zero, TimeSpan.FromSeconds(5));
     }
 
-    /// <summary>
-    /// Перепривязка хука после вывода из спящего режима
-    /// </summary>
-    /// <param name="sender"></param>
-    /// <param name="e"></param>
     private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
     {
         if (e.Mode == PowerModes.Resume)
@@ -97,32 +94,25 @@ public class KeyboardHook : IKeyboardHook
                 {
                     _releasedCombination.Add(vkCode);
 
-                    // Если была нажата Mi-клавиша и затем еще одна клавиша
-                    if (_pressedKeys.Contains(KeysConstants.MiButtonCode) && _pressedKeys.Count > 1)
+                    if (vkCode == KeysConstants.MiButtonCode)
                     {
-                        KeyCombinationPressed?.Invoke(_releasedCombination.ToArray());
-                        _pressedKeys.Clear();
-                        _releasedCombination.Clear();
+                        _miButtonPressed = true; // Mi-кнопка нажата
+                    }
 
-                        // Сброс состояния, чтобы позволить следующему нажатию сработать
-                        _pressedKeys.Add(KeysConstants.MiButtonCode);
+                    if (_miButtonPressed)
+                    {
+                        // Если нажата Mi-кнопка, блокируем передачу событий другим приложениям
+                        return (IntPtr)1; 
                     }
                 }
 
                 break;
             case WmKeyup:
-                
-                if (_pressedKeys.Count() == 1 && _pressedKeys.Contains(KeysConstants.MiButtonCode)
-                                              && vkCode != KeysConstants.MiButtonCode)
-                {
-                    break;
-                }
-                
                 if (_pressedKeys.Remove(vkCode))
                 {
-                    // Если отпущена Mi-клавиша и других клавиш не осталось
-                    if (vkCode == KeysConstants.MiButtonCode && _pressedKeys.Count == 0)
+                    if (vkCode == KeysConstants.MiButtonCode)
                     {
+                        _miButtonPressed = false; // Mi-кнопка отпущена
                         KeyCombinationPressed?.Invoke(_releasedCombination.ToArray());
                         _releasedCombination.Clear();
                     }
@@ -133,13 +123,18 @@ public class KeyboardHook : IKeyboardHook
                         _releasedCombination.Clear();
                     }
                 }
-
+                
+                if (!_miButtonPressed)
+                {
+                    // Если Mi-кнопка отпущена, позволяем другим приложениям обрабатывать события
+                    return CallNextHookEx(_hookId, nCode, wParam, lParam);
+                }
+                
                 break;
         }
 
-        return CallNextHookEx(_hookId, nCode, wParam, lParam);
+        return _miButtonPressed ? (IntPtr)1 : CallNextHookEx(_hookId, nCode, wParam, lParam); // Блокируем остальные события, если Mi-кнопка удерживается
     }
-
 
     public void Dispose()
     {
