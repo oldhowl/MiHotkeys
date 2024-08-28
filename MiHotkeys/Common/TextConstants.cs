@@ -12,4 +12,6 @@ public class TextConstants
     public const  string PowerModeMaxPower  = "Max Power";
     public static string PowerModeTurbo     = "Turbo";
     public static string PowerModeRequested = "Requested";
+
+    public const string ApplicationAlreadyRunningErrorMessage = "MiHotkeys already running.";
 }

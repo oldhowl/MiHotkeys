@@ -36,20 +36,6 @@ namespace MiHotkeys.Services.BatteryInfo
         }
 
 
-        public string GetBatteryStatusText()
-        {
-            return BatteryStatus switch
-            {
-                1 => "Discharging",
-                2 => "Charging",
-                3 => "Fully Charged",
-                _ => "Unknown"
-            };
-        }
-
-        public string GetEstimatedRunTimeText()
-        {
-            return $"{EstimatedRunTime} minutes remaining";
-        }
+      
     }
 }

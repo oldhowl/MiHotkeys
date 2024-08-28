@@ -160,6 +160,7 @@ public static class CommandsList
     public const string SetSubtitleTranscription      = "set_subtitle_transcription";
     public const string GetAiNoiseCancelingMode       = "get_ai_noise_canceling_mode";
     public const string SetAiNoiseCancelingMode       = "set_ai_noise_canceling_mode";
+    public const string RegisterAiNoiseCancelingMod   = "register_ai_noise_canceling_mod";
     public const string GetSpkNoiseCancelingMode      = "get_spk_noise_canceling_mode";
     public const string SetSpkNoiseCancelingMode      = "set_spk_noise_canceling_mode";
     public const string GetCenterPortrait             = "get_center_portrait";
@@ -168,7 +169,6 @@ public static class CommandsList
     public const string SetMeetingAssistantApp        = "set_meeting_assistant_app";
     public const string GetMeetingAssistantTrayVisi   = "get_meeting_assistant_tray_visi";
     public const string SetMeetingAssistantTrayVisi   = "set_meeting_assistant_tray_visi";
-    public const string RegisterAiNoiseCancelingMod   = "register_ai_noise_canceling_mod";
     public const string RegisterSpkNoiseCancelingMo   = "register_spk_noise_canceling_mo";
     public const string RegisterCenterPortraitChange  = "register_center_portrait_change";
     public const string GetEnrollTrainData            = "get_enroll_train_data";

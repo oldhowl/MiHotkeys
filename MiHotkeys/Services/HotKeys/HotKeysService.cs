@@ -8,32 +8,34 @@ using MiHotkeys.Services.MiDevice.Commands;
 using MiHotkeys.Services.MiDevice.Events;
 using MiHotkeys.Services.PowerManager;
 using MiHotkeys.Services.PowerMonitor;
+using MiHotkeys.Services.Settings;
 using Timer = System.Threading.Timer;
 
 namespace MiHotkeys.Services.HotKeys;
 
 public class HotKeysService : IDisposable
 {
-    private readonly Timer                     _updateTimer;
-    private          BatteryInfoService        BatteryInfoService { get; }
+    private readonly Timer              _updateTimer;
+    private          BatteryInfoService BatteryInfoService { get; }
+    public           CurrentStatuses    CurrentStatuses    { get; }
+
     private readonly MultimediaHardwareService _multimediaHardwareService;
     private readonly PowerModeSwitcher         _powerModeSwitcher;
+    private readonly AppSettingsManager        _appSettingsManager;
     private readonly PowerMonitorService       _powerMonitorService;
     private readonly IMiDeviceService          _miDeviceService;
     private readonly IKeyboardHook             _keyboardHook;
-    private readonly DisplayModeSwitcher       _displayModeSwitcher;
+    private readonly IDisplayModeManager       _displayModeSwitcher;
     private readonly Dictionary<long, Action>  _hotKeysRouter;
 
-    private bool                          _chargingProtectModeEnabled;
-    public  CurrentStatuses               CurrentStatuses { get; private set; }
     public event Action<PowerMode>?       OnPowerModeSwitched;
-    public event Action<bool>?            OnMicSwitched;
+    public event Action<bool>             OnMicSwitched;
     public event Action<RefreshRateMode>? OnDisplayRefreshRateSwitched;
     public event Action<CurrentStatuses>? OnCurrentStatusChanged;
     public Action<bool>                   OnChargingProtectModeRecieved;
 
-
     public HotKeysService(
+        AppSettingsManager        appSettingsManager,
         PowerMonitorService       powerMonitorService,
         IMiDeviceService          miDeviceService,
         BatteryInfoService        batteryInfoService,
@@ -41,18 +43,19 @@ public class HotKeysService : IDisposable
         MultimediaHardwareService multimediaHardwareService,
         PowerModeSwitcher         powerModeSwitcher,
         IKeyboardHook             keyboardHook,
-        DisplayModeSwitcher       displayModeSwitcher)
+        IDisplayModeManager       displayModeSwitcher)
     {
-        BatteryInfoService                  =  batteryInfoService;
-        _powerMonitorService                =  powerMonitorService;
-        _miDeviceService                    =  miDeviceService;
-        _keyboardHook                       =  keyboardHook;
-        _keyboardHook.KeyCombinationPressed += OnKeyCombinationPressed;
+        BatteryInfoService = batteryInfoService;
 
+        _appSettingsManager        = appSettingsManager;
+        _powerMonitorService       = powerMonitorService;
+        _miDeviceService           = miDeviceService;
+        _keyboardHook              = keyboardHook;
         _multimediaHardwareService = multimediaHardwareService;
         _powerModeSwitcher         = powerModeSwitcher;
         _displayModeSwitcher       = displayModeSwitcher;
 
+        _keyboardHook.KeyCombinationPressed            += OnKeyCombinationPressed;
         _miDeviceService.OnChargingProtectModeRecieved += ChargingProtectModeRecieved;
         _miDeviceService.OnPowerModeRecieved           += OnPowerModeRecieved;
         _powerMonitorService.PowerStatusChanged        += PowerStatusChanged;
@@ -69,18 +72,23 @@ public class HotKeysService : IDisposable
 
 
         CurrentStatuses = CurrentStatuses.SetCurrent(
-            batteryInfoService.GetPowerLoad(),
+            null,
             _powerModeSwitcher.CurrentMode,
-            displayModeSwitcher.CurrentRefreshRate,
+            displayModeSwitcher.GetCurrentRefreshRateMode(),
             multimediaHardwareService.IsMicEnabled());
 
-        _updateTimer = new Timer(UpdateBatteryStatus, null, TimeSpan.Zero, TimeSpan.FromSeconds(5));
+        _updateTimer = new Timer(UpdateBatteryStatus, null, Timeout.Infinite, Timeout.Infinite);
     }
 
     public void StartListen()
     {
         _miDeviceService.Open();
         GetChargingProtectMode();
+
+        ChangePowerLoadMonitorState(_appSettingsManager.GetPowerLoadMonitorEnabled());
+
+        _miDeviceService.Execute(new SetChargingProtectCommand(_appSettingsManager.GetChargingProtectionStatus()));
+        _miDeviceService.Execute(new SetWorkLoadMode(_appSettingsManager.GetPowerMode()));
         _miDeviceService.Execute(new GetWorkloadMode());
     }
 
@@ -88,6 +96,9 @@ public class HotKeysService : IDisposable
     {
         _powerModeSwitcher.SetPowerMode(e.Mode);
         CurrentStatuses.PowerMode = (PowerMode)e.Mode;
+
+        _appSettingsManager.SetPowerMode(e.Mode);
+
         OnPowerModeSwitched?.Invoke(CurrentStatuses.PowerMode);
     }
 
@@ -96,7 +107,7 @@ public class HotKeysService : IDisposable
         if (e.PowerSource != PowerSource.AC)
             return;
 
-        if (_chargingProtectModeEnabled == false)
+        if (_appSettingsManager.GetChargingProtectionStatus() == false)
             return;
 
         _miDeviceService.Execute(new SetChargingProtectCommand(false));
@@ -106,12 +117,17 @@ public class HotKeysService : IDisposable
 
     private void ChargingProtectModeRecieved(object? sender, ChargingProtectModeReceivedEventArgs e)
     {
-        if (e.IsEnabled && !_chargingProtectModeEnabled)
-            _miDeviceService.Execute(new SetChargingProtectCommand(true));
+        if (e.IsEnabled != _appSettingsManager.GetChargingProtectionStatus())
+        {
+            _appSettingsManager.SetChargingProtectionStatus(e.IsEnabled);
 
-        _chargingProtectModeEnabled = e.IsEnabled;
-        OnChargingProtectModeRecieved(e.IsEnabled);
+            _miDeviceService.Execute(new SetChargingProtectCommand(_appSettingsManager.GetChargingProtectionStatus()));
+            _appSettingsManager.SetChargingProtectionStatus(_appSettingsManager.GetChargingProtectionStatus());
+        }
+
+        OnChargingProtectModeRecieved.Invoke(_appSettingsManager.GetChargingProtectionStatus());
     }
+
 
     private Task GetChargingProtectMode()
     {
@@ -121,7 +137,9 @@ public class HotKeysService : IDisposable
 
     public void SetChargingProtect(bool isEnabled)
     {
+        _appSettingsManager.SetChargingProtectionStatus(isEnabled);
         _miDeviceService.Execute(new SetChargingProtectCommand(isEnabled));
+
         GetChargingProtectMode();
     }
 
@@ -144,10 +162,6 @@ public class HotKeysService : IDisposable
 
     private void UpdateBatteryStatus(object? state)
     {
-        //TODO: Что бы не долбить WMI нужно вызывать запрос только во время открытия тултипа. но события подходящего не оказалось.
-        // if (!_batteryInfoOpened)
-        // return;
-
         CurrentStatuses.PowerLoad = BatteryInfoService.GetPowerLoad();
         OnCurrentStatusChanged?.Invoke(CurrentStatuses);
     }
@@ -155,7 +169,7 @@ public class HotKeysService : IDisposable
     private void ScreenRefreshRateModeSwitched()
     {
         var currentRefreshRate = _displayModeSwitcher.SetNextRefreshRate();
-        CurrentStatuses.RefreshRateMode = _displayModeSwitcher.CurrentRefreshRate;
+        CurrentStatuses.RefreshRateMode = _displayModeSwitcher.GetCurrentRefreshRateMode();
         OnDisplayRefreshRateSwitched?.Invoke(currentRefreshRate);
     }
 
@@ -176,6 +190,21 @@ public class HotKeysService : IDisposable
     {
         if (_hotKeysRouter.TryGetValue(keysPressed.Sum(), out var action))
             action.Invoke();
+    }
+
+    public void ChangePowerLoadMonitorState(bool isEnabled)
+    {
+        _appSettingsManager.SetPowerLoadMonitorEnabled(isEnabled);
+
+        if (_appSettingsManager.GetPowerLoadMonitorEnabled())
+        {
+            _updateTimer.Change(TimeSpan.Zero, TimeSpan.FromSeconds(1));
+            return;
+        }
+
+        _updateTimer.Change(Timeout.Infinite, Timeout.Infinite);
+        CurrentStatuses.PowerLoad = null;
+        OnCurrentStatusChanged?.Invoke(CurrentStatuses);
     }
 
     public void Dispose()

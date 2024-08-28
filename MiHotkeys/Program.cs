@@ -1,6 +1,7 @@
+using System.Management;
 using MiHotkeys.Common;
 using MiHotkeys.Forms;
-using MiHotkeys.Services;
+using MiHotkeys.Forms.UI;
 using MiHotkeys.Services.AudioManager;
 using MiHotkeys.Services.BatteryInfo;
 using MiHotkeys.Services.DisplayManager;
@@ -9,22 +10,36 @@ using MiHotkeys.Services.MiDevice;
 using MiHotkeys.Services.NativeServices;
 using MiHotkeys.Services.PowerManager;
 using MiHotkeys.Services.PowerMonitor;
+using MiHotkeys.Services.Settings;
+
 
 namespace MiHotkeys;
 
 public class Program
 {
-    private static HotKeysService? _hotKeysService;
-
     [STAThread]
     static void Main()
     {
-        ApplicationConfiguration.Initialize();
+        ExceptionHandler.Initialize();
+
+        
+        if (!SingleInstanceChecker.IsSingleInstance())
+        {
+            MessageBox.Show(TextConstants.ApplicationAlreadyRunningErrorMessage, string.Empty, MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+            return;
+        }
+        
         Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
+        ApplicationConfiguration.Initialize();
+        ShowSplashScreen();
 
-        var miDeviceService = new MiDeviceEventBus();
+        var appSettingsManager = new AppSettingsManager();
+        var miDeviceService    = new MiDeviceEventBus();
 
-        _hotKeysService = new HotKeysService(
+
+        var hotKeysService = new HotKeysService(
+            appSettingsManager,
             new PowerMonitorService(),
             miDeviceService,
             new BatteryInfoService(),
@@ -41,7 +56,13 @@ public class Program
             new DisplayModeSwitcher()
         );
 
-       
-        Application.Run(new MainForm(_hotKeysService));
+        Application.Run(new App(hotKeysService, appSettingsManager.GetPowerLoadMonitorEnabled()));
+        SingleInstanceChecker.Release();
+    }
+
+    private static void ShowSplashScreen()
+    {
+        SplashScreen splashScreen = new(ResourcesConstants.FullResourceFilePath(ResourcesConstants.SplashScreenLogo));
+        splashScreen.ShowFor5SecondsAndClose();
     }
 }

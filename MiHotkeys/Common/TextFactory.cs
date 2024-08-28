@@ -1,3 +1,4 @@
+using System.Text;
 using MiHotkeys.Services.BatteryInfo;
 using MiHotkeys.Services.DisplayManager;
 using MiHotkeys.Services.PowerManager;
@@ -7,6 +8,7 @@ namespace MiHotkeys.Common;
 public class TextFactory
 {
     public const string? ChargingProtectionTrayMenuItemTitle = "Charging protection";
+    public const string? PowerLoadMonitorTrayMenuItemTitle   = "Power load monitor";
 
     #region Notification in left corner
 
@@ -45,10 +47,17 @@ public class TextFactory
     public static string ToolTipMainText(PowerLoad? powerLoad, PowerMode powerMode, RefreshRateMode refreshRate,
                                          bool       micEnabled)
     {
-        return $"Power Mode: {GetPowerModeState(powerMode)}\n"
-               + $"🖥 {GetRefreshRateState(refreshRate)}\n"
-               + $"Mic: {GetMicState(micEnabled)}\n"
-               + $"Power Load: {GetPowerLoadEmoji(powerLoad?.CalculatePowerLoadIndex())} {(powerLoad?.CalculatePowerLoadIndex().ToString() ?? "unknown")}/10";
+        var sb = new StringBuilder();
+
+        sb.AppendLine($"Power Mode: {GetPowerModeState(powerMode)}");
+        sb.AppendLine($"🖥 {GetRefreshRateState(refreshRate)}");
+        sb.AppendLine($"Mic: {GetMicState(micEnabled)}");
+
+        if (powerLoad != null)
+            sb.AppendLine(
+                $"Power Load: {GetPowerLoadEmoji(powerLoad?.CalculatePowerLoadIndex())} {(powerLoad?.CalculatePowerLoadIndex().ToString() ?? "unknown")}/10");
+
+        return sb.ToString();
     }
 
     private static string GetPowerModeState(PowerMode powerMode)

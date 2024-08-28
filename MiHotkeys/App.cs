@@ -1,28 +1,29 @@
 using MiHotkeys.Common;
+using MiHotkeys.Forms;
 using MiHotkeys.Forms.UI;
 using MiHotkeys.Services.DisplayManager;
 using MiHotkeys.Services.HotKeys;
 using MiHotkeys.Services.PowerManager;
 
-namespace MiHotkeys.Forms
+namespace MiHotkeys
 {
-    public class MainForm : Form
+    public class App : ApplicationContext
     {
-        private readonly HotKeysService _hotKeysService;
-        private readonly TrayMenu       _trayIconBehavior;
+        private readonly HotKeysService          _hotKeysService;
+        private readonly TrayMenu                _trayIconBehavior;
+        private readonly SynchronizationContext? _syncContext;
+        private readonly Notification            _notification = new();
 
-
-        public MainForm(HotKeysService hotKeysService)
+        public App(HotKeysService hotKeysService, bool powetLoadMonitorEnabled)
         {
-            _hotKeysService   = hotKeysService;
-            _trayIconBehavior = new TrayMenu();
+            _syncContext               = SynchronizationContext.Current;
+            _hotKeysService            = hotKeysService;
+            _trayIconBehavior          = new TrayMenu(powetLoadMonitorEnabled);
 
-            _trayIconBehavior.ChargingProtectionClicked  +=  hotKeysService.SetChargingProtect;
-            hotKeysService.OnChargingProtectModeRecieved = OnChargingProtectModeRecieved;
+            _trayIconBehavior.ChargingProtectionClicked      += hotKeysService.SetChargingProtect;
+            _trayIconBehavior.PowerLoadMonitorCheckedChanged += hotKeysService.ChangePowerLoadMonitorState;
+            hotKeysService.OnChargingProtectModeRecieved     =  OnChargingProtectModeRecieved;
 
-            Visible       = false;
-            WindowState   = FormWindowState.Minimized;
-            ShowInTaskbar = false;
 
             _hotKeysService.OnMicSwitched                += OnMicSwitched;
             _hotKeysService.OnPowerModeSwitched          += OnPowerModeSwitched;
@@ -32,6 +33,7 @@ namespace MiHotkeys.Forms
             _hotKeysService.StartListen();
             UpdateTrayTooltip();
         }
+
 
         private void OnCurrentStatusChanged(CurrentStatuses obj)
         {
@@ -61,7 +63,7 @@ namespace MiHotkeys.Forms
 
         private void OnChargingProtectModeRecieved(bool isEnabled)
         {
-            ExecuteOnUiThread(() => { _trayIconBehavior.ChargingProtectRecieved(isEnabled); });
+            ExecuteOnUiThread(() => _trayIconBehavior.ChargingProtectReceived(isEnabled));
         }
 
         private void UpdateTrayTooltip()
@@ -80,31 +82,32 @@ namespace MiHotkeys.Forms
                               });
         }
 
-
         private void ShowNotification(string message)
         {
-            ExecuteOnUiThread(() =>
-                              {
-                                  var notificationForm = new Notification(message);
-                                  notificationForm.Show();
-                              });
+            ExecuteOnUiThread(async () => await _notification.DisplayMessage(message));
         }
-
 
         private void ExecuteOnUiThread(Action action)
         {
-            if (InvokeRequired)
-                Invoke(action);
+            if (_syncContext != null)
+            {
+                _syncContext.Post(_ => action(), null);
+            }
             else
+            {
                 action();
+            }
         }
 
-        protected override void OnFormClosing(FormClosingEventArgs e)
+        protected override void Dispose(bool disposing)
         {
-            _trayIconBehavior.Dispose();
-            _hotKeysService.Dispose();
+            if (disposing)
+            {
+                _trayIconBehavior?.Dispose();
+                _hotKeysService?.Dispose();
+            }
 
-            base.OnFormClosing(e);
+            base.Dispose(disposing);
         }
     }
 }
